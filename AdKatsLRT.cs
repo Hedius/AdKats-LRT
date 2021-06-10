@@ -652,11 +652,13 @@ namespace PRoConEvents {
                 //Register all events
                 RegisterEvents(GetType().Name,
                     "OnVersion",
+                    "OnLevelLoaded",
                     "OnServerInfo",
                     "OnListPlayers",
                     "OnPlayerSpawned",
                     "OnPlayerKilled",
-                    "OnPlayerLeft");
+                    "OnPlayerLeft",
+                    "OnTeamFactionOverride");
             } catch (Exception e) {
                 Log.Exception("FATAL ERROR on plugin load.", e);
             }
@@ -737,6 +739,9 @@ namespace PRoConEvents {
                                     LogThreadExit();
                                     return;
                                 }
+                                
+                                // Trigger faction update
+                                UpdateFactions();
 
                                 _pluginStartTime = DateTime.UtcNow;
 
@@ -871,6 +876,38 @@ namespace PRoConEvents {
                 Log.Exception("Error while processing server info.", e);
             }
             Log.Debug("Exiting OnServerInfo", 7);
+        }
+        
+        public override void OnTeamFactionOverride(int teamId, int faction) {
+            Log.Debug("Entering OnTeamFactionOverride", 7);
+            try {
+                if (_pluginEnabled) {
+                    lock (_serverInfo) {
+                        // Update the faction
+                        _serverInfo?.SetFaction(teamId, faction);
+                    } 
+                }
+            } catch (Exception e) {
+                Log.Exception("Error while processing team faction override.", e);
+            }
+            Log.Debug("Exiting OnTeamFactionOverride", 7);
+        }
+
+        public void UpdateFactions() {
+            Log.Debug("Triggering faction update.", 7);
+            ExecuteCommand("procon.protected.send", "vars.teamFactionOverride");
+        }
+
+        public override void OnLevelLoaded(String strMapFileName, String strMapMode, Int32 roundsPlayed, Int32 roundsTotal) {
+            Log.Debug("Entering OnLevelLoaded", 7);
+            try {
+                if (_pluginEnabled) {
+                    UpdateFactions();
+                }
+            } catch (Exception e) {
+                Log.Exception("Error while processing on level loaded.", e);
+            }
+            Log.Debug("Exiting OnLevelLoaded", 7);
         }
 
         public override void OnPlayerKilled(Kill kill) {
@@ -2246,7 +2283,7 @@ namespace PRoConEvents {
 
                             _lastCategoryListing = DateTime.UtcNow;
                             if (highestWeapon != null && highestCategory1 != null && highestCategory2 != null) {
-                                String message = "US " + highestCategory1.weaponCategory.ToLower() + " " + Math.Round((Double)highestCategory1.Count / (Double)loadoutPlayers1.Count() * 100.0) + "% / RU " + highestCategory2.weaponCategory.ToLower() + " " + Math.Round((Double)highestCategory2.Count / (Double)loadoutPlayers2.Count() * 100.0) + "% / Top Weap: " + highestWeapon.weaponSlug + ", " + highestWeapon.Count + " players";
+                                String message = _serverInfo.GetFactionName(1) + " " + highestCategory1.weaponCategory.ToLower() + " " + Math.Round((Double)highestCategory1.Count / (Double)loadoutPlayers1.Count() * 100.0) + "% / " + _serverInfo.GetFactionName(2) + " " + highestCategory2.weaponCategory.ToLower() + " " + Math.Round((Double)highestCategory2.Count / (Double)loadoutPlayers2.Count() * 100.0) + "% / Top Weap: " + highestWeapon.weaponSlug + ", " + highestWeapon.Count + " players";
                                 AdminSayMessage(message);
                                 Log.Info(message);
                             }
@@ -4008,6 +4045,7 @@ namespace PRoConEvents {
             public Boolean HitIndicatorEnabled;
             public String GamePatchVersion = "UNKNOWN";
             public Int32 MaxSpectators = -1;
+            public int[] Factions = new[] {-1, -1, -1, -1, -1};
             public CServerInfo InfoObject { get; private set; }
             private DateTime _infoObjectTime = DateTime.UtcNow;
 
@@ -4021,6 +4059,28 @@ namespace PRoConEvents {
                 InfoObject = infoObject;
                 ServerName = infoObject.ServerName;
                 _infoObjectTime = DateTime.UtcNow;
+            }
+
+            public void SetFaction(int teamId, int faction) {
+                if (0 <= teamId && teamId < Factions.Length) {
+                    Factions[teamId] = faction;
+                }
+            }
+
+            public String GetFactionName(int teamId) {
+                if (teamId < 0 || teamId >= Factions.Length)
+                    return "Unknown";
+                
+                switch (Factions[teamId]) {
+                    case 0:
+                        return "US";
+                    case 1:
+                        return "RU";
+                    case 2:
+                        return "CN";
+                    default:
+                        return "Unknown";
+                }
             }
 
             public TimeSpan GetRoundElapsedTime() {
