@@ -668,6 +668,17 @@ namespace PRoConEvents {
             Log.Debug("Exiting OnPluginLoaded", 7);
         }
 
+        public void RegisterAtAdKats() {
+            ExecuteCommand("procon.protected.plugins.call", "AdKats", "SubscribeAsClient", "AdKatsLRT", JSON.JsonEncode(new Hashtable {
+                {"caller_identity", "AdKatsLRT"},
+                {"response_requested", false},
+                {"subscription_group", "OnlineSoldiers"},
+                {"subscription_method", "ReceiveOnlineSoldiers"},
+                {"subscription_enabled", true}
+            }));
+            Log.Info("Registered plugin at AdKats.");
+        }
+
         public void OnPluginEnable() {
             try {
                 //If the finalizer is still alive, inform the user and disable
@@ -726,13 +737,7 @@ namespace PRoConEvents {
 
                                 if (_enableAdKatsIntegration) {
                                     //Subscribe to online soldiers from AdKats
-                                    ExecuteCommand("procon.protected.plugins.call", "AdKats", "SubscribeAsClient", "AdKatsLRT", JSON.JsonEncode(new Hashtable {
-                                        {"caller_identity", "AdKatsLRT"},
-                                        {"response_requested", false},
-                                        {"subscription_group", "OnlineSoldiers"},
-                                        {"subscription_method", "ReceiveOnlineSoldiers"},
-                                        {"subscription_enabled", true}
-                                    }));
+                                    RegisterAtAdKats();
                                     Log.Info("Waiting for player listing response from AdKats.");
                                 } else {
                                     Log.Info("Waiting for first player list event.");
@@ -948,11 +953,11 @@ namespace PRoConEvents {
                     _fetchFailedCount += 1;
                     if (_fetchFailedCount >= 10) {
                      _fetchFailedCount = 0;
-                     Disable();
-                     Enable();
+                     RegisterAtAdKats();
                     }
                     return;
                 }
+                _fetchFailedCount = 0;
 
                 WarsawVehicle vehicle;
                 //Check for vehicle restrictions
@@ -1159,11 +1164,6 @@ namespace PRoConEvents {
             _threadsReady = false;
         }
         
-        private void Enable() {
-            //Call Enable
-            ExecuteCommand("procon.protected.plugins.enable", "AdKatsLRT", "True");
-        }
-
         public void OnPluginLoadingEnv(List<String> lstPluginEnv) {
             foreach (String env in lstPluginEnv) {
                 Log.Debug("^9OnPluginLoadingEnv: " + env, 7);
