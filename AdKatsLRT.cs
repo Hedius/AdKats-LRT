@@ -668,15 +668,15 @@ namespace PRoConEvents {
             Log.Debug("Exiting OnPluginLoaded", 7);
         }
 
-        public void RegisterAtAdKats() {
+        public void AdKatsSubscribe(Boolean subscribe) {
             ExecuteCommand("procon.protected.plugins.call", "AdKats", "SubscribeAsClient", "AdKatsLRT", JSON.JsonEncode(new Hashtable {
                 {"caller_identity", "AdKatsLRT"},
                 {"response_requested", false},
                 {"subscription_group", "OnlineSoldiers"},
                 {"subscription_method", "ReceiveOnlineSoldiers"},
-                {"subscription_enabled", true}
+                {"subscription_enabled", subscribe}
             }));
-            Log.Info("Registered plugin at AdKats.");
+            Log.Info("Sent a subscription request to AdKats. subscribe = " + subscribe.ToString());
         }
 
         public void OnPluginEnable() {
@@ -737,7 +737,7 @@ namespace PRoConEvents {
 
                                 if (_enableAdKatsIntegration) {
                                     //Subscribe to online soldiers from AdKats
-                                    RegisterAtAdKats();
+                                    AdKatsSubscribe(true);
                                     Log.Info("Waiting for player listing response from AdKats.");
                                 } else {
                                     Log.Info("Waiting for first player list event.");
@@ -798,13 +798,7 @@ namespace PRoConEvents {
 
                         if (_enableAdKatsIntegration) {
                             //Unsubscribe from online soldiers through AdKats
-                            ExecuteCommand("procon.protected.plugins.call", "AdKats", "SubscribeAsClient", "AdKatsLRT", JSON.JsonEncode(new Hashtable {
-                                {"caller_identity", "AdKatsLRT"},
-                                {"response_requested", false},
-                                {"subscription_group", "OnlineSoldiers"},
-                                {"subscription_method", "ReceiveOnlineSoldiers"},
-                                {"subscription_enabled", false}
-                            }));
+                            AdKatsSubscribe(false);
                         }
 
                         //Open all handles. Threads will finish on their own.
@@ -953,7 +947,8 @@ namespace PRoConEvents {
                     _fetchFailedCount += 1;
                     if (_fetchFailedCount >= 10) {
                      _fetchFailedCount = 0;
-                     RegisterAtAdKats();
+                     AdKatsSubscribe(false);
+                     AdKatsSubscribe(true);
                     }
                     return;
                 }
