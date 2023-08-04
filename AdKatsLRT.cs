@@ -143,6 +143,9 @@ namespace PRoConEvents {
 
         //Debug
         private Boolean _slowmo;
+         
+        // Counter for failed fetches (before triggering a plugin restart)
+        private int _fetchFailedCount = 0;
 
         public AdKatsLRT() {
             Log = new Logger(this);
@@ -883,10 +886,12 @@ namespace PRoConEvents {
                 //Fetch players
                 AdKatsSubscribedPlayer killer;
                 AdKatsSubscribedPlayer victim;
+                Boolean fetchFailed = false;
                 if (kill.Killer != null && !String.IsNullOrEmpty(kill.Killer.SoldierName)) {
                     if (!_playerDictionary.TryGetValue(kill.Killer.SoldierName, out killer)) {
                         Log.Error("Unable to fetch killer " + kill.Killer.SoldierName + " on kill.");
-                        return;
+                        // return;
+                        fetchFailed = true;
                     }
                 } else {
                     return;
@@ -894,9 +899,21 @@ namespace PRoConEvents {
                 if (kill.Victim != null && !String.IsNullOrEmpty(kill.Victim.SoldierName)) {
                     if (!_playerDictionary.TryGetValue(kill.Victim.SoldierName, out victim)) {
                         Log.Error("Unable to fetch victim " + kill.Victim.SoldierName + " on kill.");
-                        return;
+                        // return;
+                        fetchFailed = true;
                     }
                 } else {
+                    return;
+                }
+                
+                // Workaround to trigger a plugin restart if fetching fails.
+                if (fetchFailed) {
+                    _fetchFailedCount += 1;
+                    if (_fetchFailedCount >= 10) {
+                     _fetchFailedCount = 0;
+                     Disable();
+                     Enable();
+                    }
                     return;
                 }
 
@@ -1103,6 +1120,11 @@ namespace PRoConEvents {
             //Set enabled false so threads begin exiting
             _pluginEnabled = false;
             _threadsReady = false;
+        }
+        
+        private void Enable() {
+            //Call Enable
+            ExecuteCommand("procon.protected.plugins.enable", "AdKatsLRT", "True");
         }
 
         public void OnPluginLoadingEnv(List<String> lstPluginEnv) {
